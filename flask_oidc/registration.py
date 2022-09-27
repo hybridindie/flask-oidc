@@ -64,7 +64,7 @@ def check_redirect_uris(uris, client_type=None):
                 raise ValueError('http://localhost url with web client')
             client_type = 'native'
         else:
-            if (uri.startswith('http://') and 
+            if (uri.startswith('http://') and
                     not uri.startswith('http://localhost')):
                 raise ValueError('http:// url with non-localhost is illegal')
             else:
@@ -117,7 +117,8 @@ def register_client(provider_info, redirect_uris):
 
     headers = {'Content-type': 'application/json'}
 
-    resp, content = httplib2.Http().request(
+    resp, content = httplib2.Http(ca_certs=current_app.config['OIDC_CA_CERTS'],
+                                  disable_ssl_certificate_validation=current_app.config['OIDC_VERIFY_SSL']).request(
         provider_info['registration_endpoint'], 'POST',
         json.dumps(submit_info), headers=headers)
 

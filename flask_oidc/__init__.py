@@ -35,7 +35,7 @@ import calendar
 
 from six.moves.urllib.parse import urlencode
 from flask import request, session, redirect, url_for, g, current_app, abort
-from oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow,\
+from oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow, \
     AccessTokenRefreshError, OAuth2Credentials
 import httplib2
 import jwt
@@ -44,10 +44,12 @@ __all__ = ['OpenIDConnect', 'MemoryCredentials']
 
 logger = logging.getLogger(__name__)
 
+
 def _json_loads(content):
     if not isinstance(content, str):
         content = content.decode('utf-8')
     return json.loads(content)
+
 
 class MemoryCredentials(dict):
     """
@@ -62,6 +64,7 @@ class DummySecretsCache(object):
     """
     oauth2client secrets cache
     """
+
     def __init__(self, client_secrets):
         self.client_secrets = client_secrets
 
@@ -84,6 +87,7 @@ class ErrStr(str):
     this ErrStr class, which are basic strings except for their bool() results:
     they return False.
     """
+
     def __nonzero__(self):
         """The py2 method for bool()."""
         return False
@@ -100,10 +104,11 @@ class OpenIDConnect(object):
     """
     The core OpenID Connect client object.
     """
+
     def __init__(self, app=None, credentials_store=None, http=None, time=None,
                  urandom=None):
-        self.credentials_store = credentials_store\
-            if credentials_store is not None\
+        self.credentials_store = credentials_store \
+            if credentials_store is not None \
             else MemoryCredentials()
 
         if http is not None:
@@ -140,6 +145,9 @@ class OpenIDConnect(object):
         app.config.setdefault('OIDC_ID_TOKEN_COOKIE_TTL', 7 * 86400)  # 7 days
         # should ONLY be turned off for local debugging
         app.config.setdefault('OIDC_COOKIE_SECURE', True)
+        # Self-signed and untrusted certificates are common in local dev
+        app.config.setdefault('OIDC_VERIFY_SSL', True)
+        app.config.setdefault('OIDC_CA_CERTS', None)
         app.config.setdefault('OIDC_VALID_ISSUERS',
                               (self.client_secrets.get('issuer') or
                                GOOGLE_ISSUERS))
@@ -234,7 +242,7 @@ class OpenIDConnect(object):
         :raises Exception: If the user was not authenticated. Check this with
             user_loggedin.
 
-        .. versionadded:: 1.0
+        .. version added:: 1.0
         """
         if g.oidc_id_token is None and access_token is None:
             raise Exception('User was not authenticated')
@@ -307,7 +315,8 @@ class OpenIDConnect(object):
         if '_oidc_userinfo' in g:
             return g._oidc_userinfo
 
-        http = httplib2.Http()
+        http = httplib2.Http(ca_certs=current_app.config['OIDC_CA_CERTS'],
+                             disable_ssl_certificate_validation=current_app.config['OIDC_VERIFY_SSL'])
         if access_token is None:
             try:
                 credentials = OAuth2Credentials.from_json(
@@ -319,7 +328,7 @@ class OpenIDConnect(object):
             credentials.authorize(http)
             resp, content = http.request(self.client_secrets['userinfo_uri'])
         else:
-            # We have been manually overriden with an access token
+            # We have been manually override with an access token
             resp, content = http.request(
                 self.client_secrets['userinfo_uri'],
                 "POST",
@@ -333,7 +342,6 @@ class OpenIDConnect(object):
 
         return info
 
-
     def get_cookie_id_token(self):
         """
         .. deprecated:: 1.0
@@ -346,7 +354,7 @@ class OpenIDConnect(object):
     def _get_cookie_id_token(self):
         try:
             id_token_cookie = request.cookies.get(current_app.config[
-                'OIDC_ID_TOKEN_COOKIE_NAME'])
+                                                      'OIDC_ID_TOKEN_COOKIE_NAME'])
             if not id_token_cookie:
                 # Do not error if we were unable to get the cookie.
                 # The user can debug this themselves.
@@ -360,8 +368,8 @@ class OpenIDConnect(object):
             logger.info("Signature invalid for ID token cookie", exc_info=True)
             return None
         except:
-             logger.info("Token cookie JWT error", exc_info=True)
-             return None
+            logger.info("Token cookie JWT error", exc_info=True)
+            return None
 
     def set_cookie_id_token(self, id_token):
         """
@@ -400,7 +408,7 @@ class OpenIDConnect(object):
                     httponly=True,
                     max_age=current_app.config['OIDC_ID_TOKEN_COOKIE_TTL'])
             else:
-                # This was a log out
+                # This was a log-out
                 response.set_cookie(
                     current_app.config['OIDC_ID_TOKEN_COOKIE_NAME'],
                     '',
@@ -450,7 +458,9 @@ class OpenIDConnect(object):
 
             # refresh and store credentials
             try:
-                credentials.refresh(httplib2.Http())
+                credentials.refresh(httplib2.Http(ca_certs=current_app.config['OIDC_CA_CERTS'],
+                                                  disable_ssl_certificate_validation=current_app.config[
+                                                      'OIDC_VERIFY_SSL']))
                 if credentials.id_token:
                     id_token = credentials.id_token
                 else:
@@ -488,12 +498,15 @@ class OpenIDConnect(object):
         .. versionadded:: 1.0
            This was :func:`check` before.
         """
+
         @wraps(view_func)
         def decorated(*args, **kwargs):
             if g.oidc_id_token is None:
                 return self.redirect_to_auth_server(request.url)
             return view_func(*args, **kwargs)
+
         return decorated
+
     # Backwards compatibility
     check = require_login
     """
@@ -511,6 +524,7 @@ class OpenIDConnect(object):
 
         .. versionadded:: 1.5.0
         """
+
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
@@ -520,7 +534,9 @@ class OpenIDConnect(object):
                     return view_func(*args, **kwargs)
                 else:
                     return abort(403)
+
             return decorated
+
         return wrapper
 
     def flow_for_request(self):
@@ -564,8 +580,7 @@ class OpenIDConnect(object):
            Use :func:`require_login` instead.
         """
         if not self._custom_callback and customstate:
-            raise ValueError('Custom State is only avilable with a custom '
-                             'handler')
+            raise ValueError('Custom State is only available with a custom handler')
         if 'oidc_csrf_token' not in session:
             csrf_token = urlsafe_b64encode(os.urandom(24)).decode('utf-8')
             session['oidc_csrf_token'] = csrf_token
@@ -653,8 +668,7 @@ class OpenIDConnect(object):
 
         # additional steps specific to our usage
         if current_app.config['OIDC_GOOGLE_APPS_DOMAIN'] and \
-                id_token.get('hd') != current_app.config[
-                    'OIDC_GOOGLE_APPS_DOMAIN']:
+                id_token.get('hd') != current_app.config['OIDC_GOOGLE_APPS_DOMAIN']:
             logger.error('Invalid google apps domain')
             return False
 
@@ -673,6 +687,7 @@ class OpenIDConnect(object):
         The custom OIDC callback will get the custom state field passed in with
         redirect_to_auth_server.
         """
+
         @wraps(view_func)
         def decorated(*args, **kwargs):
             plainreturn, data = self._process_callback('custom')
@@ -680,6 +695,7 @@ class OpenIDConnect(object):
                 return data
             else:
                 return view_func(data, *args, **kwargs)
+
         self._custom_callback = decorated
         return decorated
 
@@ -722,7 +738,7 @@ class OpenIDConnect(object):
         if not self._is_id_token_valid(id_token):
             logger.debug("Invalid ID token")
             if id_token.get('hd') != current_app.config[
-                    'OIDC_GOOGLE_APPS_DOMAIN']:
+                'OIDC_GOOGLE_APPS_DOMAIN']:
                 return True, self._oidc_error(
                     "You must log in with an account from the {0} domain."
                     .format(current_app.config['OIDC_GOOGLE_APPS_DOMAIN']),
@@ -836,7 +852,7 @@ class OpenIDConnect(object):
             if not has_required_scopes:
                 logger.debug('Token missed required scopes')
 
-        if (valid_token and has_required_scopes):
+        if valid_token and has_required_scopes:
             g.oidc_token_info = token_info
             return True
 
@@ -848,7 +864,7 @@ class OpenIDConnect(object):
             return 'Something went wrong checking your token'
 
     def accept_token(self, require_token=False, scopes_required=None,
-                           render_errors=True):
+                     render_errors=True):
         """
         Use this to decorate view functions that should accept OAuth2 tokens,
         this will most likely apply to API functions.
@@ -880,7 +896,7 @@ class OpenIDConnect(object):
             def decorated(*args, **kwargs):
                 token = None
                 if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
-                    token = request.headers['Authorization'].split(None,1)[1].strip()
+                    token = request.headers['Authorization'].split(None, 1)[1].strip()
                 if 'access_token' in request.form:
                     token = request.form['access_token']
                 elif 'access_token' in request.args:
@@ -897,6 +913,7 @@ class OpenIDConnect(object):
                     return response_body, 401, {'WWW-Authenticate': 'Bearer'}
 
             return decorated
+
         return wrapper
 
     def _get_token_info(self, token):
@@ -909,19 +926,20 @@ class OpenIDConnect(object):
         if hint != 'none':
             request['token_type_hint'] = hint
 
-        auth_method = current_app.config['OIDC_INTROSPECTION_AUTH_METHOD'] 
-        if (auth_method == 'client_secret_basic'):
+        auth_method = current_app.config['OIDC_INTROSPECTION_AUTH_METHOD']
+        if auth_method == 'client_secret_basic':
             basic_auth_string = '%s:%s' % (self.client_secrets['client_id'], self.client_secrets['client_secret'])
             basic_auth_bytes = bytearray(basic_auth_string, 'utf-8')
             headers['Authorization'] = 'Basic %s' % b64encode(basic_auth_bytes).decode('utf-8')
-        elif (auth_method == 'bearer'):
+        elif auth_method == 'bearer':
             headers['Authorization'] = 'Bearer %s' % token
-        elif (auth_method == 'client_secret_post'):
+        elif auth_method == 'client_secret_post':
             request['client_id'] = self.client_secrets['client_id']
             if self.client_secrets['client_secret'] is not None:
                 request['client_secret'] = self.client_secrets['client_secret']
 
-        resp, content = httplib2.Http().request(
+        resp, content = httplib2.Http(ca_certs=current_app.config['OIDC_CA_CERTS'],
+                                      disable_ssl_certificate_validation=current_app.config['OIDC_VERIFY_SSL']).request(
             self.client_secrets['token_introspection_uri'], 'POST',
             urlencode(request), headers=headers)
         # TODO: Cache this reply

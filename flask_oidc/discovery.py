@@ -39,6 +39,7 @@ def discover_OP_information(OP_uri):
 
     .. versionadded:: 1.0
     """
-    _, content = httplib2.Http().request(
+    _, content = httplib2.Http(ca_certs=current_app.config['OIDC_CA_CERTS'],
+                               disable_ssl_certificate_validation=current_app.config['OIDC_VERIFY_SSL']).request(
         '%s/.well-known/openid-configuration' % OP_uri)
     return _json_loads(content)
