@@ -24,18 +24,18 @@ setup(
     name='flask-oidc',
     description='OpenID Connect extension for Flask',
     long_description=readme,
-    url='https://github.com/puiterwijk/flask-oidc',
-    author='Erica Ehrhardt, Patrick Uiterwijk',
+    url='https://github.com/hybridindie/flask-oidc',
+    author='John Dilts',
     author_email='patrick@puiterwijk.org',
-    version='1.4.0',
+    version='1.4.1',
     packages=[
         'flask_oidc',
     ],
     install_requires=[
         'Flask',
-        'itsdangerous',
+        'PyJWT',
         'oauth2client',
-        'six',
+        'six'
     ],
     tests_require=['nose', 'mock'],
     entry_points={
