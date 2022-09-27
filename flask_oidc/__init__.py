@@ -35,7 +35,7 @@ import calendar
 
 from six.moves.urllib.parse import urlencode
 from flask import request, session, redirect, url_for, g, current_app, abort
-from oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow, \
+from .oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow, \
     AccessTokenRefreshError, OAuth2Credentials
 import httplib2
 import jwt
