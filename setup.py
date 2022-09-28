@@ -34,7 +34,6 @@ setup(
     install_requires=[
         'Flask',
         'PyJWT',
-        'oauth2client',
         'six'
     ],
     tests_require=['nose', 'mock'],
